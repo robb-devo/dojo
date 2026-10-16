@@ -1,0 +1,29 @@
+[Unit]
+Description=Dojo agent (read-only JSON API for the Dojo app)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=dojo-agent
+Group=dojo-agent
+EnvironmentFile=/etc/dojo-agent/agent.env
+ExecStart=/usr/bin/python3 /opt/dojo-agent/dojo_agent.py
+Restart=on-failure
+RestartSec=3
+# read-only access to Minecraft dirs/processes owned by other users
+AmbientCapabilities=CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+Nice=5
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
