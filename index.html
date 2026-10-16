@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dojo</title><meta name="theme-color" content="#120d0b"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#120d0b;--card:#1e1714;--line:#3a2b24;--red:#c8372d;--gold:#d9a441;--txt:#efe6dc;--mut:#a39283}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px system-ui,sans-serif;padding-bottom:70px}
+header{padding:14px 16px;border-bottom:2px solid var(--red);display:flex;align-items:center;gap:10px}header h1{margin:0;font-size:20px;letter-spacing:3px}header small{color:var(--gold)}
+main{padding:12px;max-width:900px;margin:auto}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0c0807;border-top:1px solid var(--line)}nav button{flex:1;background:none;border:0;color:var(--mut);padding:10px 2px;font-size:12px}nav button.on{color:var(--gold)}
+button.b{background:var(--red);color:#fff;border:0;border-radius:6px;padding:7px 12px;margin:3px 3px 3px 0}button.g{background:#2c221d}
+input,textarea,select{width:100%;background:#0f0b09;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:7px;margin:3px 0;font:inherit}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:#666}.on .dot,.dot.on{background:#3fbf5f}.dot.off{background:var(--red)}
+.mut{color:var(--mut);font-size:13px}.tag{background:#2c221d;border-radius:4px;padding:2px 6px;font-size:12px;margin:2px;display:inline-block}
+.map{display:flex;flex-direction:column;align-items:center}.map .kids{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;border-top:2px solid var(--gold);padding-top:10px;margin-top:6px}
+.node{background:#0f0b09;border:1px solid var(--gold);border-radius:8px;padding:8px 12px;text-align:center;min-width:110px}
+#chat{height:55vh;overflow:auto}.msg{padding:8px 10px;border-radius:8px;margin:6px 0;max-width:85%;white-space:pre-wrap}.me{background:#3a1d19;margin-left:auto}.sen{background:#2c221d}
+</style></head><body>
+<header><span style="font-size:26px">⛩️</span><div><h1>DOJO</h1><small>DonnerNet network sensei</small></div></header>
+<main id="v"></main>
+<nav id="nav"></nav>
+<script>
+const K='dojo-data-v1';
+const seed={servers:[{id:'s1',name:'DonnerNet',role:'proxy',host:'play.donnernet.de',port:25565,version:'',notes:'Main entry address',plugins:[],todos:[]}]};
+let D=JSON.parse(localStorage.getItem(K)||'null')||seed, ST={}, tab='map', edit=null;
+const save=()=>localStorage.setItem(K,JSON.stringify(D)), $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const tabs={map:'🗺️ Map',status:'📡 Status',servers:'🧱 Servers',todo:'📜 Scrolls',sensei:'🥋 AI-kido',more:'⚙️ More'};
+function nav(){$('#nav').innerHTML=Object.entries(tabs).map(([k,l])=>`<button class="${k==tab?'on':''}" onclick="go('${k}')">${l}</button>`).join('')}
+function go(t){tab=t;edit=null;render()}
+async function fetchStatus(s){const a=s.host+(s.port&&s.port!=25565?':'+s.port:'');try{const r=await fetch('https://api.mcsrvstat.us/3/'+encodeURIComponent(a));ST[s.id]=await r.json()}catch(e){ST[s.id]={online:false,err:e.message}}ST[s.id].t=new Date().toLocaleTimeString()}
+async function refreshAll(){await Promise.all(D.servers.filter(s=>s.host).map(fetchStatus));if(tab=='status'||tab=='map')render()}
+function dot(s){const x=ST[s.id];return `<span class="dot ${x?(x.online?'on':'off'):''}"></span>`}
+function vMap(){const p=D.servers.filter(s=>s.role=='proxy'),b=D.servers.filter(s=>s.role!='proxy');const n=s=>`<div class="node">${dot(s)} <b>${esc(s.name)}</b><div class="mut">${esc(s.role)} · ${esc(s.version||'?')}</div></div>`;
+return `<div class="card map">${p.map(n).join('')||'<span class=mut>No proxy yet</span>'}<div class="kids">${b.map(n).join('')||'<span class=mut>No backend servers yet – add some in Servers</span>'}</div></div><p class="mut">Tip: the proxy is the gate of the dojo; backends are the training halls.</p>`}
+function vStatus(){return `<button class="b" onclick="refreshAll()">↻ Refresh</button>`+D.servers.map(s=>{const x=ST[s.id];return `<div class="card"><div class="row">${dot(s)}<b>${esc(s.name)}</b><span class="mut">${esc(s.host)}:${s.port||25565}</span></div>${!s.host?'<div class=mut>No public host (internal backend)</div>':!x?'<div class=mut>Loading…</div>':x.online?`<div>Players: <b>${x.players?.online??0}/${x.players?.max??'?'}</b> · ${esc(x.version||'')}</div><div class="mut">${esc((x.motd?.clean||[]).join(' / '))}</div>${(x.players?.list||[]).map(p=>`<span class=tag>${esc(p.name)}</span>`).join('')}<div class=mut>checked ${x.t} (API caches ~5 min)</div>`:`<div style="color:var(--red)">Offline / unreachable</div><div class=mut>checked ${x.t}</div>`}</div>`}).join('')}
+function vServers(){if(edit)return vEdit();return `<button class="b" onclick="newS()">+ Add server</button>`+D.servers.map(s=>`<div class="card"><div class="row">${dot(s)}<b>${esc(s.name)}</b><span class=tag>${esc(s.role)}</span><span class=tag>${esc(s.version||'no version')}</span></div><div class=mut>${esc(s.host)}${s.host?':'+(s.port||25565):''} ${esc(s.notes)}</div><div>${s.plugins.map(p=>`<span class=tag>🧩 ${esc(p.name)} ${esc(p.version)}</span>`).join('')}</div><button class="b g" onclick="edit='${s.id}';render()">Edit</button></div>`).join('')}
+function newS(){const s={id:uid(),name:'New server',role:'backend',host:'',port:25565,version:'',notes:'',plugins:[],todos:[]};D.servers.push(s);save();edit=s.id;render()}
+function vEdit(){const s=D.servers.find(x=>x.id==edit);const f=(k,l)=>`<label class=mut>${l}</label><input value="${esc(s[k])}" onchange="upd('${k}',this.value)">`;
+return `<div class="card">${f('name','Name')}<label class=mut>Role</label><select onchange="upd('role',this.value)">${['proxy','backend','lobby','survival','minigame','creative','test','other'].map(r=>`<option ${r==s.role?'selected':''}>${r}</option>`).join('')}</select>${f('host','Host (public, optional)')}${f('port','Port')}${f('version','Version (e.g. Paper 1.21.4 / Velocity 3.4)')}<label class=mut>Notes</label><textarea onchange="upd('notes',this.value)">${esc(s.notes)}</textarea>
+<h3>🧩 Plugins</h3>${s.plugins.map((p,i)=>`<div class=row><span class=tag>${esc(p.name)} ${esc(p.version)}</span><button class="b g" onclick="delP(${i})">✕</button></div>`).join('')}<div class=row><input id=pn placeholder="Plugin" style="flex:2"><input id=pv placeholder="Version" style="flex:1"><button class=b onclick="addP()">Add</button></div>
+<p><button class=b onclick="edit=null;render()">Done</button><button class="b g" onclick="if(confirm('Delete server?')){D.servers=D.servers.filter(x=>x.id!=edit);save();edit=null;render()}">Delete</button></p></div>`}
+function cur(){return D.servers.find(x=>x.id==edit)}
+function upd(k,v){const s=cur();s[k]=k=='port'?(+v||25565):v;save();if(k=='host'||k=='port')fetchStatus(s)}
+function addP(){const n=$('#pn').value.trim();if(!n)return;cur().plugins.push({name:n,version:$('#pv').value.trim()});save();render()}
+function delP(i){cur().plugins.splice(i,1);save();render()}
+function vTodo(){return `<div class="card"><div class=row><select id=ts style="flex:1">${D.servers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select><select id=tk style="flex:1"><option>todo</option><option>idea</option></select></div><div class=row><input id=tt placeholder="New scroll…" style="flex:3"><button class=b onclick="addT()">Add</button></div></div>`+
+D.servers.map(s=>`<div class=card><b>${esc(s.name)}</b>${s.todos.length?'':'<div class=mut>Nothing yet.</div>'}${s.todos.map((t,i)=>`<div class=row><input type=checkbox style="width:auto" ${t.done?'checked':''} onchange="tg('${s.id}',${i})"><span style="${t.done?'text-decoration:line-through;opacity:.5':''}">${t.kind=='idea'?'💡':'📌'} ${esc(t.text)}</span><button class="b g" onclick="dT('${s.id}',${i})">✕</button></div>`).join('')}</div>`).join('')}
+function addT(){const t=$('#tt').value.trim();if(!t)return;D.servers.find(s=>s.id==$('#ts').value).todos.push({text:t,kind:$('#tk').value,done:false});save();render()}
+function tg(id,i){const t=D.servers.find(s=>s.id==id).todos[i];t.done=!t.done;save();render()}
+function dT(id,i){D.servers.find(s=>s.id==id).todos.splice(i,1);save();render()}
+let CH=[{w:'sen',t:'Osu! I am AI-kido, sensei of this Dojo 🥋\nAsk me: "status", "offline", "version 1.21", "todos", "ideas", "plugin LuckPerms", "server Lobby", "summary", "help".'}];
+const jokes=['A lagging server is just practicing slow-motion kata.','The wise admin backs up before upgrading. The foolish admin becomes a legend in the logs.','Even a black belt restarts the proxy sometimes.','One does not simply /reload in production, grasshopper.'];
+function sensei(q){q=q.toLowerCase().trim();const S=D.servers,j=()=>'\n\n🥋 '+jokes[Math.floor(Math.random()*jokes.length)];
+const named=S.find(s=>q.includes(s.name.toLowerCase()));
+if(/help|hilfe/.test(q))return 'Questions I understand: status, online, offline, players, version <x>, plugin <name>, todos, ideas, server <name>, summary, list.';
+if(/offline/.test(q)){const o=S.filter(s=>ST[s.id]&&!ST[s.id].online);return o.length?'These halls are dark: '+o.map(s=>s.name).join(', ')+'. Go wake them, student.':'No checked server is offline. The dojo is at peace.'+(S.some(s=>!ST[s.id])?' (Some have no public host / not checked.)':'')}
+if(/status|online|player|spieler/.test(q)){return S.map(s=>{const x=ST[s.id];return `${s.name}: ${!x?'not checked':x.online?`online, ${x.players?.online??0}/${x.players?.max??'?'} players`:'offline'}`}).join('\n')+j()}
+let m=q.match(/version\s*([\w.\-]+)/)||q.match(/(\d+\.\d+(\.\d+)?)/);if(m&&!/plugin/.test(q)){const v=m[1];const r=S.filter(s=>s.version.toLowerCase().includes(v)||s.plugins.some(p=>p.version.toLowerCase().includes(v)));return r.length?`Running "${v}": `+r.map(s=>`${s.name} (${s.version||'plugins'})`).join(', '):`No server runs "${v}". Versions in the dojo: `+[...new Set(S.map(s=>s.version||'?'))].join(', ')}
+m=q.match(/plugin\s+(.+)/);if(m){const n=m[1].trim();const r=S.filter(s=>s.plugins.some(p=>p.name.toLowerCase().includes(n)));return r.length?`${n} lives on: `+r.map(s=>s.name+' '+(s.plugins.find(p=>p.name.toLowerCase().includes(n)).version||'')).join(', '):`No server wields "${n}".`}
+if(/plugin/.test(q))return S.map(s=>`${s.name}: ${s.plugins.map(p=>p.name+' '+p.version).join(', ')||'none'}`).join('\n');
+if(/idea/.test(q)){const r=S.flatMap(s=>s.todos.filter(t=>t.kind=='idea'&&!t.done).map(t=>`💡 ${s.name}: ${t.text}`));return r.join('\n')||'No ideas yet. Meditate, and they will come.'}
+if(/todo|to-do|task|aufgabe|open/.test(q)){const r=S.flatMap(s=>s.todos.filter(t=>t.kind!='idea'&&!t.done).map(t=>`📌 ${s.name}: ${t.text}`));return r.length?`${r.length} open scrolls:\n`+r.join('\n')+j():'All scrolls complete. Rare discipline, student.'}
+if(named){const s=named,x=ST[s.id];return `${s.name} (${s.role}) ${s.host?s.host+':'+s.port:''}\nVersion: ${s.version||'?'}\nStatus: ${!x?'unchecked':x.online?'online '+(x.players?.online??0)+' players':'offline'}\nPlugins: ${s.plugins.map(p=>p.name).join(', ')||'none'}\nOpen todos: ${s.todos.filter(t=>!t.done).length}\nNotes: ${s.notes||'-'}`}
+if(/summary|list|overview|servers?/.test(q)){const on=S.filter(s=>ST[s.id]?.online).length;return `Your dojo has ${S.length} server(s): ${S.filter(s=>s.role=='proxy').length} proxy, ${S.filter(s=>s.role!='proxy').length} backend. ${on} confirmed online. ${S.reduce((a,s)=>a+s.todos.filter(t=>!t.done).length,0)} open scrolls.\n`+S.map(s=>`• ${s.name} [${s.role}] ${s.version}`).join('\n')}
+if(/rcon|restart|command|befehl/.test(q))return 'Patience. Remote commands (RCON) arrive in v2. A sensei does not hand out the sword before the student knows the stance.';
+if(/hi|hello|hallo|hey|osu/.test(q))return 'Osu! Bow, enter, and ask your question.';
+if(/joke|witz/.test(q))return jokes[Math.floor(Math.random()*jokes.length)];
+return 'Hmm. That is beyond my scrolls. I only know your network. Try "help".'+j()}
+function vSensei(){return `<div class="card" id=chat>${CH.map(m=>`<div class="msg ${m.w}">${esc(m.t)}</div>`).join('')}</div><div class=row><input id=q placeholder="Ask the sensei…" style="flex:1" onkeydown="if(event.key=='Enter')ask()"><button class=b onclick="ask()">Ask</button></div>`}
+function ask(){const q=$('#q').value.trim();if(!q)return;CH.push({w:'me',t:q},{w:'sen',t:sensei(q)});render();$('#q').focus()}
+function vMore(){return `<div class=card><h3>🔐 RCON control — coming in v2</h3><p class=mut>Run commands and start/stop servers from Dojo. Not active yet; no passwords are stored.</p><button class="b g" disabled>Connect RCON (v2)</button></div>
+<div class=card><h3>💾 Backup</h3><button class=b onclick="exp()">Export JSON</button><label class="b g" style="display:inline-block">Import JSON<input type=file accept=".json" style="display:none" onchange="imp(this)"></label><button class="b g" onclick="if(confirm('Reset all data?')){D=seed;save();render()}">Reset</button><p class=mut>Data lives only in this browser (localStorage). Export to move it between phone and PC.</p></div>`}
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:'application/json'}));a.download='dojo-backup.json';a.click()}
+function imp(i){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.servers))throw 0;D=d;save();refreshAll();render();alert('Imported. Osu!')}catch{alert('Invalid file')}};r.readAsText(i.files[0])}
+function render(){nav();$('#v').innerHTML={map:vMap,status:vStatus,servers:vServers,todo:vTodo,sensei:vSensei,more:vMore}[tab]();if(tab=='sensei'){const c=$('#chat');c.scrollTop=c.scrollHeight}}
+render();refreshAll();setInterval(refreshAll,120000);
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+</script></body></html>
