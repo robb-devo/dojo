@@ -92,6 +92,15 @@ public class DojoUpdaterPlugin extends Plugin {
         }).start();
     }
 
+    /** Switch to the downloaded bundle right now (reloads the WebView). */
+    @PluginMethod
+    public void applyBundle(PluginCall call) {
+        String p = prefs().getString("serverBasePath", "");
+        if (p == null || p.isEmpty() || !new File(p).exists()) { call.reject("no downloaded bundle"); return; }
+        call.resolve();
+        getActivity().runOnUiThread(() -> getBridge().setServerBasePath(p));
+    }
+
     /** Revert to the web files bundled in the APK (next launch). */
     @PluginMethod
     public void resetBundle(PluginCall call) {

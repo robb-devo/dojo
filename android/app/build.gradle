@@ -7,8 +7,8 @@ android {
         applicationId "de.donnernet.dojo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode((project.findProperty("dojoVersionCode") ?: "10100") as Integer)
-        versionName((project.findProperty("dojoVersionName") ?: "1.1.0") as String)
+        versionCode((project.findProperty("dojoVersionCode") ?: "10201") as Integer)
+        versionName((project.findProperty("dojoVersionName") ?: "1.2.1") as String)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -36,6 +36,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh release create "$GITHUB_REF_NAME" Dojo-*.apk --title "Dojo $GITHUB_REF_NAME" --notes "Premium redesign, Android app with auto-updates (web bundle + in-app APK updates)." || gh release upload "$GITHUB_REF_NAME" Dojo-*.apk --clobber
+          gh release create "$GITHUB_REF_NAME" Dojo-*.apk --title "Dojo $GITHUB_REF_NAME" --notes "Dojo $GITHUB_REF_NAME: fixed auto-updates (web bundle + in-app APK), Apply now button, update status in More." || gh release upload "$GITHUB_REF_NAME" Dojo-*.apk --clobber
       - uses: actions/upload-artifact@v4
         with: { name: apk, path: 'Dojo-*.apk' }

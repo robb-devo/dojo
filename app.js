@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='1.2.0';
+const APP_VERSION='1.2.1';
 const K='dojo-data-v1';
 const seed=()=>({servers:[{id:'s1',name:'DonnerNet',role:'proxy',host:'play.donnernet.de',port:25565,version:'',notes:'Main entry address',plugins:[],todos:[]}]});
 function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&Array.isArray(d.servers)){d.servers.forEach(s=>{s.plugins=s.plugins||[];s.todos=s.todos||[];s.port=s.port||25565});return d}}catch(e){}return seed()}
@@ -79,32 +79,42 @@ return `<div class="card" style="padding:12px"><div id="chat">${CH.map(m=>m.w=='
 function ask(pre){const q=(pre||$('#q').value).trim();if(!q||typing)return;haptic();CH.push({w:'me',t:q});typing=true;render();aiReply(q).then(r=>{typing=false;CH.push(r);haptic(5);render();if(!pre)$('#q')?.focus()})}
 function vMore(){return vAgentSettings()+`<div class="card"><div class="row"><span style="color:var(--acc2)">${I('lock')}</span><h3 style="margin:0">RCON control</h3><span class="pill">v2</span></div><p class="m">Run commands and start or stop servers right from Dojo. Coming in v2. No passwords are stored.</p><button class="btn" disabled>Connect RCON</button></div>
 <div class="card"><h3>Backup</h3><p class="m" style="margin-top:0">Your data lives on this device only. Export to move it between phone and PC.</p><div class="row"><button class="btn p" onclick="exp()">${I('dl',18)}Export</button><label class="btn" style="margin:0;color:var(--t);font-size:14px">${I('ul',18)}Import<input type="file" accept=".json,application/json" style="display:none" onchange="imp(this)"></label><span class="sp"></span><button class="btn gh" style="color:var(--acc)" onclick="if(confirm('Reset all data?')){D=seed();save();render();refreshAll()}">${I('trash',18)}Reset</button></div></div>
-<div class="card"><h3>About</h3><div class="m">Dojo ${APP_VERSION}${window.Capacitor?.isNativePlatform?.()?' · Android app':' · Web'} · AI-kido runs fully on-device.</div>${window.Capacitor?.isNativePlatform?.()?`<button class="btn" style="margin-top:10px" onclick="checkNative(true)">${I('refresh',18)}Check for updates</button>`:''}</div>`}
+<div class="card"><h3>About</h3><div class="m">Dojo ${APP_VERSION}${window.Capacitor?.isNativePlatform?.()?' · Android app':' · Web'} · AI-kido runs fully on-device.</div></div>`+vUpdates()}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,2)],{type:'application/json'}));a.download='dojo-backup.json';a.click();toast('Backup exported')}
 function imp(i){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.servers))throw 0;D=d;save();D=load();refreshAll();render();toast('Imported. Osu!')}catch{toast('Invalid backup file')}};r.readAsText(i.files[0])}
 function render(){nav();$('#title').textContent=tabs[tab][0];$('#sub').textContent=tabs[tab][1];
 $('#act').innerHTML=tab=='server'||tab=='map'?`<button class="btn ic" onclick="refreshAll(true);if(tab=='server')loadAgent(true)" aria-label="Refresh">${I('refresh',18)}</button>`:tab=='servers'&&!edit?`<button class="btn p" onclick="newS()">${I('plus',18)}Add</button>`:'';
 const v=$('#v');v.innerHTML={map:vMap,server:vServer,servers:vServers,todo:vTodo,sensei:vSensei,more:vMore}[tab]();if(tab=='sensei'){const c=$('#chat');c.scrollTop=c.scrollHeight}}
 if('serviceWorker'in navigator&&!window.Capacitor?.isNativePlatform?.())navigator.serviceWorker.register('sw.js');
-/* ---- Native auto-update (Android app only) ---- */
+/* ---- Native bridge (no @capacitor/core is bundled, so call the native plugin directly) ---- */
 const REPO='robb-devo/dojo';
+const isNative=()=>!!window.Capacitor?.isNativePlatform?.();
+const NU=(m,o={})=>window.Capacitor.nativePromise('DojoUpdater',m,o);
 const vnum=v=>String(v).replace(/^v/,'').split('.').map(n=>+n||0).reduce((a,n)=>a*1000+n,0);
-async function checkNative(manual){const C=window.Capacitor;if(!C?.isNativePlatform?.())return;const U=C.Plugins.DojoUpdater;if(!U)return;
-try{const info=await U.getInfo();const r=await fetch(`https://api.github.com/repos/${REPO}/releases/latest`,{headers:{Accept:'application/vnd.github+json'}});const rel=await r.json();
-const apk=(rel.assets||[]).find(a=>a.name.endsWith('.apk'));if(!apk||vnum(rel.tag_name)<=vnum(info.versionName)){if(manual)toast('You are on the latest version');return}
-if(!manual&&localStorage.getItem('dojo-skip')==rel.tag_name)return;sheet(rel,apk,info,U)}catch(e){if(manual)toast('Update check failed')}}
-function sheet(rel,apk,info,U){const el=document.createElement('div');el.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:30;animation:fd .3s" id="shbg"></div><div class="card" style="position:fixed;left:10px;right:10px;bottom:calc(var(--sab) + 10px);z-index:31;max-width:520px;margin:0 auto;padding:22px;border-color:var(--bd2);background:rgba(24,22,30,.97)"><div class="row"><img src="icon-192.png" style="width:44px;height:44px;border-radius:12px"><div><b style="font-size:17px">Update available</b><div class="m">Dojo ${esc(rel.tag_name)} · you have ${esc(info.versionName)} · ${(apk.size/1048576).toFixed(1)} MB</div></div></div><div class="m" style="margin:14px 0;max-height:140px;overflow:auto;white-space:pre-wrap">${esc(rel.body||'Fresh training from the sensei.')}</div><div id="shp" class="sk" style="display:none;height:6px"></div><div class="row"><button class="btn gh" id="shl">Later</button><span class="sp"></span><button class="btn p" id="shu">${I('dl',18)}Update</button></div></div>`;document.body.appendChild(el);
+const UPD=JSON.parse(localStorage.getItem('dojo-upd')||'{}');
+function updLog(k,msg){UPD[k]={msg,t:new Date().toLocaleString()};localStorage.setItem('dojo-upd',JSON.stringify(UPD));console.log('[dojo-update]',k,msg);if(tab=='more')render()}
+let NINFO=null;async function nInfo(){if(!NINFO)NINFO=await NU('getInfo');return NINFO}
+async function checkNative(manual){if(!isNative())return;
+try{const info=await nInfo();const r=await fetch(`https://api.github.com/repos/${REPO}/releases/latest?t=${Date.now()}`,{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error('GitHub HTTP '+r.status);const rel=await r.json();
+const apk=(rel.assets||[]).find(a=>a.name.endsWith('.apk'));if(!apk||vnum(rel.tag_name)<=vnum(info.versionName)){updLog('native',`Up to date (app ${info.versionName}, latest ${rel.tag_name})`);if(manual)toast('App is up to date');return}
+updLog('native',`App update ${rel.tag_name} available`);if(!manual&&localStorage.getItem('dojo-skip')==rel.tag_name)return;sheet(rel,apk,info)}catch(e){updLog('native','Check failed: '+(e.message||e));if(manual)toast('App update check failed')}}
+function sheet(rel,apk,info){const el=document.createElement('div');el.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:30;animation:fd .3s" id="shbg"></div><div class="card" style="position:fixed;left:10px;right:10px;bottom:calc(var(--sab) + 10px);z-index:31;max-width:520px;margin:0 auto;padding:22px;border-color:var(--bd2);background:rgba(24,22,30,.97)"><div class="row"><img src="icon-192.png" style="width:44px;height:44px;border-radius:12px"><div><b style="font-size:17px">Update available</b><div class="m">Dojo ${esc(rel.tag_name)} · you have ${esc(info.versionName)} · ${(apk.size/1048576).toFixed(1)} MB</div></div></div><div class="m" style="margin:14px 0;max-height:140px;overflow:auto;white-space:pre-wrap">${esc(rel.body||'Fresh training from the sensei.')}</div><div id="shp" class="sk" style="display:none;height:6px"></div><div class="row"><button class="btn gh" id="shl">Later</button><span class="sp"></span><button class="btn p" id="shu">${I('dl',18)}Update</button></div></div>`;document.body.appendChild(el);
 const close=()=>el.remove();el.querySelector('#shbg').onclick=close;el.querySelector('#shl').onclick=()=>{localStorage.setItem('dojo-skip',rel.tag_name);close()};
-el.querySelector('#shu').onclick=async()=>{haptic(15);const b=el.querySelector('#shu');b.disabled=true;b.lastChild.textContent='Downloading…';el.querySelector('#shp').style.display='block';try{await U.downloadAndInstall({url:apk.browser_download_url});b.lastChild.textContent='Installing…'}catch(e){b.disabled=false;b.lastChild.textContent='Retry';toast(e.message||'Download failed')}}}
-
-/* ---- Web live update (Android app): newer web bundle from GitHub Pages, applied on next launch ---- */
+el.querySelector('#shu').onclick=async()=>{haptic(15);const b=el.querySelector('#shu');b.disabled=true;b.lastChild.textContent='Downloading…';el.querySelector('#shp').style.display='block';try{await NU('downloadAndInstall',{url:apk.browser_download_url});b.lastChild.textContent='Installing…'}catch(e){b.disabled=false;b.lastChild.textContent='Retry';toast(e.message||'Download failed')}}}
+/* ---- Web live update: newer bundle from GitHub Pages, downloaded in background, applied via "Apply now" or next start ---- */
 const WEB_BASE='https://robb-devo.github.io/dojo/';
-async function checkWeb(){const C=window.Capacitor;if(!C?.isNativePlatform?.())return;const U=C.Plugins.DojoUpdater;if(!U)return;
-try{const r=await fetch(WEB_BASE+'version.json?t='+Date.now(),{cache:'no-store'});const v=await r.json();
-const have=localStorage.getItem('dojo-web-pending')||APP_VERSION;if(vnum(v.version)<=vnum(have))return;
-const info=await U.getInfo();if(v.minNative&&vnum(info.versionName)<vnum(v.minNative))return;
-await U.downloadBundle({base:WEB_BASE,version:v.version,files:v.files});localStorage.setItem('dojo-web-pending',v.version);toast('Update ready: restart Dojo to apply')}catch(e){/* offline: keep current bundle */}}
-
+async function checkWeb(manual){if(!isNative())return;
+try{const r=await fetch(WEB_BASE+'version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Pages HTTP '+r.status);const v=await r.json();const info=await nInfo();
+const pend=info.webBasePath?localStorage.getItem('dojo-web-pending'):null;const have=pend&&vnum(pend)>vnum(APP_VERSION)?pend:APP_VERSION;
+if(vnum(v.version)<=vnum(have)){updLog('web',have!==APP_VERSION?`${have} downloaded, apply to use it`:`Up to date (web ${APP_VERSION}, latest ${v.version})`);if(manual)toast('Web bundle is up to date');return}
+if(v.minNative&&vnum(info.versionName)<vnum(v.minNative)){updLog('web',`${v.version} needs app ${v.minNative}+`);return}
+updLog('web',`Downloading ${v.version}…`);await NU('downloadBundle',{base:WEB_BASE,version:v.version,files:v.files});localStorage.setItem('dojo-web-pending',v.version);NINFO=null;await nInfo();
+updLog('web',`${v.version} ready, tap Apply now`);toast('Update ready, tap Apply now in More')}catch(e){updLog('web','Check failed: '+(e.message||e));if(manual)toast('Web update check failed')}}
+async function applyNow(){try{await NU('applyBundle')}catch(e){toast('Close Dojo fully and reopen to apply')}}
+function vUpdates(){if(!isNative())return `<div class="card"><h3>Updates</h3><div class="m">Web version ${APP_VERSION}. The browser version updates itself.</div></div>`;
+const i=NINFO||{},pend=localStorage.getItem('dojo-web-pending'),canApply=pend&&vnum(pend)>vnum(APP_VERSION)&&i.webBasePath;
+return `<div class="card"><h3>Updates</h3><div class="kv"><span>App (native)</span><b>${esc(i.versionName||'?')} (${esc(i.versionCode??'?')})</b><span>Web bundle</span><b>${APP_VERSION} · ${i.webBasePath?'downloaded':'built-in'}</b>${canApply?`<span>Pending</span><b>${esc(pend)}</b>`:''}<span>Web check</span><b>${esc(UPD.web?.msg||'not yet')} <span class="d">${esc(UPD.web?.t||'')}</span></b><span>App check</span><b>${esc(UPD.native?.msg||'not yet')} <span class="d">${esc(UPD.native?.t||'')}</span></b></div>
+<div class="row" style="margin-top:12px"><button class="btn" onclick="checkWeb(true);checkNative(true)">${I('refresh',18)}Check now</button>${canApply?`<button class="btn p" onclick="applyNow()">${I('check',18)}Apply now</button>`:''}<span class="sp"></span>${i.webBasePath?`<button class="btn gh" onclick="NU('resetBundle').then(()=>{localStorage.removeItem('dojo-web-pending');toast('Built-in version on next start')})">Use built-in</button>`:''}</div></div>`}
 /* ---- v1.2: dojo-agent (live server data + AI) ---- */
 const AG={get url(){return (localStorage.getItem('dojo-agent-url')||'').replace(/\/+$/,'')},get token(){return localStorage.getItem('dojo-agent-token')||''}};
 let AGD=null,AGERR=null,AGLOAD=false,LOGS={};
@@ -157,4 +167,5 @@ const r=await api('/api/chat',{method:'POST',body:JSON.stringify({messages:[{rol
 await new Promise(r=>setTimeout(r,400+Math.random()*300));return {w:'sen',t:sensei(q),src:agentOn()?'offline mode':'local',local:true}}
 render();refreshAll();setInterval(()=>refreshAll(),120000);
 loadAgent();setInterval(()=>{if(tab=='server')loadAgent()},30000);
-setTimeout(()=>checkNative(false),1500);setTimeout(checkWeb,4000);
+if(isNative())nInfo().catch(e=>updLog('native','Bridge error: '+(e.message||e))).finally(()=>{checkWeb(false);setTimeout(()=>checkNative(false),1500)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&isNative())checkWeb(false)});
