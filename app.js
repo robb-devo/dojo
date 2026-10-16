@@ -29,7 +29,7 @@ const empty=(ic,t,d,btn='')=>`<div class="card empty"><div class="ei">${I(ic,26)
 function vMap(){const p=D.servers.filter(s=>s.role=='proxy'),b=D.servers.filter(s=>s.role!='proxy');
 const n=(s,c='')=>`<div class="node ${c}" onclick="edit='${s.id}';tab='servers';render()">${st(s)}<div><b>${esc(s.name)}</b><small>${esc(s.role)} · ${esc(s.version||'version?')}</small></div></div>`;
 const on=D.servers.filter(s=>ST[s.id]?.online).length,pl=D.servers.reduce((a,s)=>a+(ST[s.id]?.players?.online||0),0),td=D.servers.reduce((a,s)=>a+s.todos.filter(t=>!t.done).length,0);
-return `<div class="grid" style="margin-bottom:12px"><div class="card"><div class="m">Servers online</div><div class="big">${on}<span class="m"> / ${D.servers.length}</span></div></div><div class="card"><div class="m">Players now</div><div class="big">${pl}</div></div><div class="card"><div class="m">Open scrolls</div><div class="big">${td}</div></div></div>
+return `<div class="grid stats" style="margin-bottom:12px"><div class="card"><div class="m">Servers online</div><div class="big">${on}<span class="m"> / ${D.servers.length}</span></div></div><div class="card"><div class="m">Players now</div><div class="big">${pl}</div></div><div class="card"><div class="m">Open scrolls</div><div class="big">${td}</div></div></div>
 <div class="card map">${p.map(s=>n(s,'px')).join('')||'<div class="m">No proxy yet</div>'}<div class="link"></div><div class="kids">${b.map(s=>n(s)).join('')||'<div class="m" style="padding:6px">No backend servers yet. Add your lobby, survival or minigame servers.</div>'}</div></div>
 <p class="d" style="text-align:center">The proxy is the gate of the dojo; backends are the training halls.</p>`}
 function vStatus(){return D.servers.map(s=>{const x=ST[s.id];let body;
