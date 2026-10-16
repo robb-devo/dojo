@@ -1,0 +1,42 @@
+name: Android APK
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: android-actions/setup-android@v3
+      - name: Version from tag
+        id: v
+        run: |
+          V="${GITHUB_REF_NAME#v}"; [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || V=$(node -p "require('./package.json').version")
+          IFS=. read a b c <<< "$V"; echo "name=$V" >> $GITHUB_OUTPUT; echo "code=$((a*10000+b*100+c))" >> $GITHUB_OUTPUT
+      - run: npm ci || npm install
+      - run: npm run web && npx cap sync android
+      - name: Build signed release APK
+        env:
+          DOJO_KEYSTORE_PASSWORD: ${{ secrets.DOJO_KEYSTORE_PASSWORD }}
+          DOJO_KEY_PASSWORD: ${{ secrets.DOJO_KEY_PASSWORD }}
+          DOJO_KEY_ALIAS: ${{ secrets.DOJO_KEY_ALIAS }}
+        run: |
+          echo "${{ secrets.DOJO_KEYSTORE_B64 }}" | base64 -d > $RUNNER_TEMP/dojo.p12
+          export DOJO_KEYSTORE=$RUNNER_TEMP/dojo.p12
+          cd android && chmod +x gradlew && ./gradlew --no-daemon assembleRelease -PdojoVersionName=${{ steps.v.outputs.name }} -PdojoVersionCode=${{ steps.v.outputs.code }}
+          cp app/build/outputs/apk/release/app-release.apk $GITHUB_WORKSPACE/Dojo-${{ steps.v.outputs.name }}.apk
+          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs $GITHUB_WORKSPACE/Dojo-*.apk | head -3 || true
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release create "$GITHUB_REF_NAME" Dojo-*.apk --title "Dojo $GITHUB_REF_NAME" --notes "Premium redesign, Android app with auto-updates (web bundle + in-app APK updates)." || gh release upload "$GITHUB_REF_NAME" Dojo-*.apk --clobber
+      - uses: actions/upload-artifact@v4
+        with: { name: apk, path: 'Dojo-*.apk' }

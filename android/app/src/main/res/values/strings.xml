@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dojo</string>
+    <string name="title_activity_main">Dojo</string>
+    <string name="package_name">de.donnernet.dojo</string>
+    <string name="custom_url_scheme">de.donnernet.dojo</string>
+</resources>
